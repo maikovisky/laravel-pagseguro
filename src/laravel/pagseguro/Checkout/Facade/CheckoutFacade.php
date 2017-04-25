@@ -10,6 +10,8 @@ use laravel\pagseguro\Checkout\SimpleCheckout;
 use laravel\pagseguro\Checkout\GamerCheckout;
 use laravel\pagseguro\Phone\Phone;
 use laravel\pagseguro\Phone\PhoneInterface;
+use laravel\pagseguro\PreApproval\PreApproval;
+use laravel\pagseguro\PreApproval\PreApprovalInterface;
 
 /**
  * Checkout Facade Object
@@ -34,8 +36,9 @@ class CheckoutFacade
         $isGamer = array_key_exists('game', $data);
         $isTravel = array_key_exists('travel', $data);
         $isCharger = array_key_exists('cellphone_charger', $data);
-        $isSimple = !($isGamer || $isTravel || $isCharger);
-        $this->multiTypeCheck($isGamer, $isTravel, $isCharger, $isSimple);
+        $isPreApproval = array_key_exists('preApproval', $data);
+        $isSimple = !($isGamer || $isTravel || $isCharger || $isPreApproval);
+        $this->multiTypeCheck($isGamer, $isTravel, $isCharger, $isPreApproval, $isSimple);
         if ($isGamer) {
             $info = $data['game'];
             unset($data['game']);
@@ -48,6 +51,11 @@ class CheckoutFacade
             $info = $data['cellphone_charger'];
             unset($data['cellphone_charger']);
             return $this->createCellPhoneChargerCheckout($data, $info);
+        } elseif ($isPreApproval) {
+            $info = $data['preApproval'];
+            unset($data['preApproval']);
+            return $this->createPreApprovalCheckout($data, $info);
+
         }
         return $this->createSimpleCheckout($data);
     }
@@ -111,17 +119,25 @@ class CheckoutFacade
         return $checkout;
     }
 
+    public function createPreApprovalCheckout(array $data, $preApproval)
+    {
+        if(!($preApproval instanceof PreApprovalInterface)) {
+            $preApproval = PreApproval::factory($preApproval);
+        }
+    }
+
     /**
      * @param bool $isGamer
      * @param bool $isTravel
      * @param bool $isCharger
      * @param bool $isSimple
      */
-    private function multiTypeCheck($isGamer, $isTravel, $isCharger, $isSimple)
+    private function multiTypeCheck($isGamer, $isTravel, $isCharger, $isPreApproval, $isSimple)
     {
         $counter = ((int)$isGamer) +
             ((int)$isTravel) +
             ((int)$isCharger) +
+            ((int)$isPreApproval) +
             ((int)$isSimple);
         if ($counter > 1) {
             throw new \InvalidArgumentException('Two or more checkout types detected');
